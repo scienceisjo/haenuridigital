@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>해누리중학교 디벗 사용 밸런스 붕괴 게임</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Jua&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow-x:hidden}
+body{font-family:'Jua','Noto Sans KR',sans-serif;background:#1a1a2e}
+
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-4px)}20%,40%,60%,80%{transform:translateX(4px)}}
+@keyframes confetti{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(400px) rotate(720deg);opacity:0}}
+@keyframes scoreUp{0%{transform:scale(1)}50%{transform:scale(1.4)}100%{transform:scale(1)}}
+@keyframes bounceIn{0%{transform:scale(0.3);opacity:0}50%{transform:scale(1.1)}70%{transform:scale(0.9)}100%{transform:scale(1);opacity:1}}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 5px rgba(255,255,255,0.3)}50%{box-shadow:0 0 25px rgba(255,255,255,0.6)}}
+
+.screen{display:none;min-height:100vh;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+.screen.active{display:flex}
+
+.title-screen{background:linear-gradient(180deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)}
+.game-screen{background:linear-gradient(180deg,#1a1a2e 0%,#16213e 100%);justify-content:flex-start;padding-top:16px}
+.result-screen-go{background:linear-gradient(180deg,#1a1a2e 0%,#2d1b1b 100%)}
+.result-screen-ok{background:linear-gradient(180deg,#1a1a2e 0%,#1b2d1b 100%)}
+
+.floating-bg{position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;pointer-events:none;z-index:0}
+.floating-emoji{position:absolute;opacity:0.15;animation:float 4s ease-in-out infinite}
+
+.content{position:relative;z-index:1;text-align:center;animation:bounceIn 0.8s ease;width:100%;max-width:560px}
+
+.main-emoji{font-size:72px;margin-bottom:8px;animation:float 3s ease-in-out infinite}
+.main-title{font-size:clamp(24px,5vw,38px);color:#fff;margin:0 0 4px;text-shadow:0 0 30px rgba(102,126,234,0.6),0 4px 8px rgba(0,0,0,0.3);letter-spacing:2px;line-height:1.4}
+.sub-title{font-size:clamp(13px,3vw,17px);color:#74c0fc;margin-bottom:6px;letter-spacing:1px}
+.desc{font-size:clamp(12px,2.5vw,15px);color:rgba(255,255,255,0.5);margin-bottom:32px}
+
+.info-box{background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:20px 24px;margin:0 auto 32px;max-width:420px;animation:slideUp 0.8s ease 0.3s both}
+.info-box p{color:rgba(255,255,255,0.8);font-size:clamp(13px,2.5vw,15px);line-height:1.7}
+
+.btn-primary{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:50px;padding:16px 56px;font-size:clamp(16px,3.5vw,20px);font-family:'Jua',sans-serif;cursor:pointer;box-shadow:0 8px 32px rgba(102,126,234,0.4);animation:glowPulse 2s ease-in-out infinite;transition:transform 0.2s}
+.btn-primary:hover{transform:scale(1.05)}
+
+.btn-next{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:50px;padding:14px 44px;font-size:17px;font-family:'Jua',sans-serif;cursor:pointer;box-shadow:0 6px 24px rgba(102,126,234,0.3);transition:transform 0.2s;animation:fadeIn 0.3s ease}
+.btn-next:hover{transform:scale(1.05)}
+.btn-next.final{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%)}
+
+.credit{font-size:clamp(11px,2.2vw,13px);color:rgba(255,255,255,0.3);letter-spacing:0.5px;font-family:'Noto Sans KR',sans-serif;margin-top:32px}
+
+/* Game */
+.game-wrapper{max-width:560px;width:100%}
+.top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 4px}
+.q-count{font-size:12px;color:rgba(255,255,255,0.5);font-family:'Noto Sans KR',sans-serif}
+.score-display{display:flex;align-items:center;gap:6px}
+.score-display .star{font-size:22px}
+.score-display .val{font-size:18px;font-weight:900;color:#ffd43b;text-shadow:0 2px 4px rgba(0,0,0,0.3)}
+.score-display.anim .val{animation:scoreUp 0.5s ease}
+
+.hp-bar-wrap{display:flex;align-items:center;gap:8px;width:100%;margin-bottom:16px}
+.hp-bar-wrap.shake{animation:shake 0.5s ease}
+.hp-label{font-size:14px;font-weight:700;color:#fff;min-width:24px}
+.hp-track{flex:1;height:20px;background:rgba(0,0,0,0.3);border-radius:10px;overflow:hidden;border:2px solid rgba(255,255,255,0.2)}
+.hp-fill{height:100%;border-radius:8px;transition:width 0.8s cubic-bezier(0.4,0,0.2,1)}
+.hp-text{font-size:13px;font-weight:700;color:#fff;min-width:55px;text-align:right}
+
+.progress-bar{display:flex;gap:3px;margin-bottom:20px}
+.progress-seg{flex:1;height:4px;border-radius:2px;transition:background 0.3s}
+
+.scenario-card{border-radius:24px;padding:28px 24px 24px;margin-bottom:16px;box-shadow:0 12px 40px rgba(0,0,0,0.3);animation:slideUp 0.5s ease;position:relative;overflow:hidden}
+.scenario-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.15)}
+.scenario-inner{position:relative;z-index:1}
+.scenario-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.scenario-emoji{font-size:40px;animation:float 2.5s ease-in-out infinite}
+.stage-label{font-size:11px;color:rgba(255,255,255,0.6);letter-spacing:1px}
+.stage-title{font-size:clamp(17px,3.5vw,20px);font-weight:900;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,0.2)}
+.scenario-text{color:#fff;font-size:clamp(14px,3vw,16px);line-height:1.8;white-space:pre-line;font-family:'Noto Sans KR',sans-serif;font-weight:500;text-shadow:0 1px 3px rgba(0,0,0,0.2);opacity:0;transition:opacity 0.5s ease}
+.scenario-text.revealed{opacity:1}
+
+.choices{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.choice-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:16px 18px;color:#fff;font-size:clamp(13px,2.8vw,15px);font-family:'Noto Sans KR',sans-serif;font-weight:500;text-align:left;cursor:pointer;transition:all 0.3s ease;display:flex;gap:12px;align-items:flex-start;line-height:1.6}
+.choice-btn:not(.disabled):hover{background:rgba(255,255,255,0.1);transform:translateX(4px)}
+.choice-btn.disabled{cursor:default}
+.choice-btn.correct-reveal{background:rgba(105,219,124,0.15);border:2px solid #69db7c;box-shadow:0 0 20px rgba(105,219,124,0.2)}
+.choice-btn.wrong-reveal{background:rgba(255,107,107,0.15);border:2px solid #ff6b6b;box-shadow:0 0 20px rgba(255,107,107,0.2)}
+.choice-btn.dimmed{opacity:0.4}
+
+.choice-num{min-width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;color:rgba(255,255,255,0.6)}
+.choice-num.correct{background:#69db7c;color:#fff}
+.choice-num.wrong{background:#ff6b6b;color:#fff}
+
+.result-box{border-radius:20px;padding:20px 22px;margin-bottom:16px;animation:bounceIn 0.5s ease}
+.result-box.correct{background:rgba(105,219,124,0.08);border:1px solid rgba(105,219,124,0.2)}
+.result-box.wrong{background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.2)}
+.result-text{font-size:14px;color:rgba(255,255,255,0.8);line-height:1.8;white-space:pre-line;font-family:'Noto Sans KR',sans-serif}
+.badge{display:inline-block;border-radius:8px;padding:4px 12px;font-size:13px;font-weight:700;margin-top:12px}
+.badge-hp{background:rgba(255,107,107,0.2);color:#ff6b6b}
+.badge-score{background:rgba(255,212,59,0.2);color:#ffd43b}
+
+/* Result Screen */
+.result-content{max-width:480px;width:100%;text-align:center;animation:bounceIn 0.6s ease}
+.result-emoji{font-size:80px;margin-bottom:12px}
+.result-emoji.float{animation:float 2s ease-in-out infinite}
+.result-emoji.pulse-anim{animation:pulse 1.5s ease-in-out infinite}
+.result-title{font-size:28px;margin:0 0 8px}
+.go-title{color:#ff6b6b;font-size:32px;text-shadow:0 0 20px rgba(255,107,107,0.4)}
+
+.stats-card{background:rgba(255,255,255,0.06);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:28px;margin-bottom:20px}
+.rank-emoji{font-size:48px;margin-bottom:8px}
+.rank-title{font-size:24px;font-weight:900;margin-bottom:4px}
+.rank-desc{font-size:14px;color:rgba(255,255,255,0.6);margin-bottom:20px}
+
+.stats-row{display:flex;justify-content:center;gap:32px;margin-bottom:20px}
+.stat-num{font-size:32px;font-weight:900}
+.stat-label{font-size:12px;color:rgba(255,255,255,0.5)}
+
+.history-card{background:rgba(255,255,255,0.04);border-radius:16px;padding:16px;margin-bottom:16px;border:1px solid rgba(255,255,255,0.08)}
+.history-title{font-size:14px;color:rgba(255,255,255,0.5);margin-bottom:12px}
+.history-grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.history-item{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.history-item.ok{background:rgba(105,219,124,0.2);border:2px solid #69db7c}
+.history-item.fail{background:rgba(255,107,107,0.2);border:2px solid #ff6b6b}
+
+.support-info{background:rgba(255,255,255,0.06);border-radius:12px;padding:14px 20px;margin-bottom:24px;border:1px solid rgba(255,255,255,0.1)}
+.support-info .label{font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:4px}
+.support-info .number{font-size:20px;font-weight:900;color:#74c0fc;letter-spacing:2px}
+
+.confetti-wrap{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999}
+.confetti-piece{position:absolute;top:-20px}
+
+/* Landscape optimization */
+@media (min-width:768px){
+  .game-wrapper{max-width:640px}
+  .content{max-width:600px}
+  .scenario-card{padding:32px 32px 28px}
+  .choices{flex-direction:column;gap:12px}
+  .choice-btn{padding:18px 22px;font-size:15px}
+  .stats-row{gap:48px}
+  .info-box{max-width:480px}
+}
+@media (min-width:1024px){
+  .game-wrapper{max-width:720px}
+  .content{max-width:660px}
+}
+@media (max-height:500px) and (orientation:landscape){
+  .screen{min-height:auto;padding:12px}
+  .main-emoji{font-size:48px;margin-bottom:4px}
+  .main-title{font-size:24px}
+  .info-box{padding:12px 16px;margin-bottom:16px}
+  .btn-primary{padding:12px 40px;font-size:16px}
+  .credit{margin-top:16px}
+  .scenario-card{padding:16px 18px 14px}
+  .scenario-emoji{font-size:28px}
+  .choice-btn{padding:10px 14px;font-size:13px}
+  .result-emoji{font-size:48px}
+}
+</style>
+</head>
+<body>
+
+<!-- TITLE SCREEN -->
+<div id="titleScreen" class="screen title-screen active">
+  <div class="floating-bg" id="floatingBg"></div>
+  <div class="content">
+    <div class="main-emoji">💻</div>
+    <h1 class="main-title">디벗 사용<br>밸런스 붕괴 게임</h1>
+    <div class="sub-title">DIGITAL+벗</div>
+    <div class="desc">해누리중학교 디벗 사용 밸런스 붕괴 밸런스게임</div>
+    <div class="info-box">
+      <p>14개의 상황에서 올바른 선택을 하세요!<br>틀리면 HP가 깎이고, 맞추면 점수 UP!<br>HP가 0이 되면 게임 오버!</p>
+    </div>
+    <button class="btn-primary" onclick="startGame()">🎮 게임 시작!</button>
+    <div class="credit">제작 : 해누리중학교 과학정보부 조승재</div>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="gameScreen" class="screen game-screen">
+  <div class="game-wrapper">
+    <div class="top-bar">
+      <div class="q-count" id="qCount"></div>
+      <div class="score-display" id="scoreDisplay">
+        <span class="star">⭐</span>
+        <span class="val" id="scoreVal">0</span>
+      </div>
+    </div>
+    <div class="hp-bar-wrap" id="hpWrap">
+      <span class="hp-label">HP</span>
+      <div class="hp-track"><div class="hp-fill" id="hpFill"></div></div>
+      <span class="hp-text" id="hpText"></span>
+    </div>
+    <div class="progress-bar" id="progressBar"></div>
+    <div class="scenario-card" id="scenarioCard">
+      <div class="scenario-overlay"></div>
+      <div class="scenario-inner">
+        <div class="scenario-header">
+          <span class="scenario-emoji" id="scenarioEmoji"></span>
+          <div>
+            <div class="stage-label" id="stageLabel"></div>
+            <div class="stage-title" id="stageTitle"></div>
+          </div>
+        </div>
+        <div class="scenario-text" id="scenarioText"></div>
+      </div>
+    </div>
+    <div class="choices" id="choicesWrap"></div>
+    <div id="resultBox" style="display:none"></div>
+    <div id="nextBtnWrap" style="text-align:center"></div>
+    <div style="height:32px"></div>
+  </div>
+</div>
+
+<!-- RESULT SCREEN -->
+<div id="resultScreen" class="screen">
+  <div class="result-content" id="resultContent"></div>
+  <div id="confettiWrap"></div>
+</div>
+
+<script>
+const SCENARIOS = [
+  {
+    id:1, title:"금요일 하교", emoji:"🎒",
+    situation:"오늘은 집가는 금요일! 드디어 주말이다~!\n가기 전에 디벗을 어떻게 해야 할까?",
+    bg:"linear-gradient(135deg, #FF9A56 0%, #FF6B6B 100%)",
+    choices:[
+      {text:"디벗도 쉬어야지~ 사물함이나 책상 위에 올려 둔다.",correct:false},
+      {text:"충전함에 넣기 전 디벗 업데이트 버튼을 눌러놓고 전원을 켠 뒤 충전함에 넣는다.",correct:true}
+    ],
+    wrongResult:{text:"😱 월요일에 와보니 디벗 배터리가 0%! 업데이트도 안 되어있어서 수업 시작부터 멘붕...\n\n충전함에 넣기 전 업데이트 버튼을 눌러놓고 전원을 켠 뒤 충전함에 넣어야 해요!",hp:-15,score:0},
+    rightResult:{text:"✨ 완벽해요! 월요일에 와보니 디벗이 풀충전에 업데이트도 완료!\n수업 준비 끝~!",hp:0,score:15}
+  },
+  {
+    id:2, title:"키보드 고장?!", emoji:"⌨️",
+    situation:"나는 해누리중 2학년! 그런데...\n키보드가 안 되네~? 아무리 눌러도 반응이 없다!",
+    bg:"linear-gradient(135deg, #4ECDC4 0%, #2C3E50 100%)",
+    choices:[
+      {text:"기계는 패야지! 키보드를 막 팬다. 👊💥",correct:false},
+      {text:"충전 문제인지 블루투스 문제인지 확인하고, 안 되면 과학정보부로 찾아간다.",correct:true}
+    ],
+    wrongResult:{text:"💀 키보드: 사망... 이제 수리비 내야 해요.\n기계를 때린다고 고쳐지는 건 옛날 TV뿐이에요!\n\n충전과 블루투스를 먼저 확인하고, 안 되면 과학정보부로 오세요!",hp:-20,score:0},
+    rightResult:{text:"🔧 블루투스 재연결하니 바로 됐다! 역시 침착하게 대응하는 게 최고!\n안 됐으면 과학정보부에서 바로 해결해줬을 거에요~",hp:0,score:15}
+  },
+  {
+    id:3, title:"자료 조사 과제", emoji:"📚",
+    situation:"선생님께서 자료 조사 과제를 내주셨다!\n인터넷에서 딱 맞는 자료를 찾았는데...",
+    bg:"linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    choices:[
+      {text:"인터넷에 올라온 거? 다 내 꺼! Ctrl+C → Ctrl+V 야르~! 🤪",correct:false},
+      {text:"출처를 정확히 밝히고, 내용이 정확한지 확인한다. 📝",correct:true}
+    ],
+    wrongResult:{text:"🚨 표절 적발! 선생님께 불려감...\n남의 글을 그대로 복사하면 저작권 침해에요!\n\n출처를 밝히고 내용의 정확성을 확인하는 것이 올바른 자세입니다!",hp:-15,score:0},
+    rightResult:{text:"📖 출처도 정확하고 내용 검증도 완벽! 선생님께 칭찬받았어요!\n디지털 리터러시의 기본은 출처 표기와 사실 확인!",hp:0,score:15}
+  },
+  {
+    id:4, title:"게임 설치의 유혹", emoji:"🎮",
+    situation:"디벗? 디지털 벗이라고? 내 친구네!\n친구랑은 재밌는 걸 해야지!\n브롤스타즈, 클로, 체스... 다 깔아볼까?",
+    bg:"linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+    choices:[
+      {text:"다 깔자! 브롤스타즈! 클로! 체스! 게임 천국 만들기! 🎯",correct:false},
+      {text:"디벗은 학습용 기기! 허가되지 않은 앱은 설치하면 안 돼. 📱",correct:true}
+    ],
+    wrongResult:{text:'😅 이미 다 막혀있었다...\n게다가 앱 검토 요청이 관리자인 선생님께 뜨게 됨!\n\n"조승재 선생님 : 누구냐... 게임 깔려고 한 사람이..." 🔍\n\n디벗은 학습용 기기입니다. 허가되지 않은 앱 설치는 금지!',hp:-20,score:0},
+    rightResult:{text:"👍 현명한 선택! 디벗은 소중한 학습 도구에요.\n학습에 필요한 앱은 선생님께 요청하면 설치해주신답니다!",hp:0,score:15}
+  },
+  {
+    id:5, title:"비밀번호 분실", emoji:"🔐",
+    situation:"비밀번호가 뭐였더라...?\n분명 설정했는데 도저히 기억이 안 난다!",
+    bg:"linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+    choices:[
+      {text:"에이~ 그냥 잊고 산다. 비밀번호 없는 인생도 나쁘지 않아! 😎",correct:false},
+      {text:"과학정보부 조승재 선생님께 비밀번호 변경을 요청한다. 🙋",correct:true}
+    ],
+    wrongResult:{text:"😰 디벗에 로그인을 못 해서 수업을 못 듣게 됐다!\n비밀번호를 잊으면 과학정보부에 바로 요청하세요!\n\n조승재 선생님께서 비밀번호 변경을 도와주십니다!",hp:-10,score:0},
+    rightResult:{text:"🔑 과학정보부에서 바로 비밀번호 변경 완료!\n역시 문제가 생기면 바로바로 해결하는 게 최고!",hp:0,score:15}
+  },
+  {
+    id:6, title:"카메라 과제", emoji:"📸",
+    situation:"선생님께서 카메라를 사용한 과제를 내주셨다!\n오~ 카메라 켜니까 재밌는데?",
+    bg:"linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+    choices:[
+      {text:'"안녕하세요~ 스타일 좋으셔서~" 하며 친구 사진을 마구 찍는다! 📷✨',correct:false},
+      {text:"선생님이 지시한 사항에 대해서만 카메라를 사용한다. 동의 없이 촬영 금지! 🚫",correct:true}
+    ],
+    wrongResult:{text:"😡 친구들이 엄청 화났다! 초상권 침해로 문제 발생!\n타인의 사진을 동의 없이 찍는 것은 초상권 침해에요!\n\n카메라는 과제 목적으로만 사용하고, 장난 금지!",hp:-20,score:0},
+    rightResult:{text:"📱 과제도 완벽하게 제출하고, 친구들과의 관계도 좋아요!\n카메라는 정해진 용도로만! 초상권을 존중합시다!",hp:0,score:15}
+  },
+  {
+    id:7, title:"디벗 분실!", emoji:"😱",
+    situation:"디벗을 잃어버렸다! 어쩌지?!\n분명 여기 있었는데...",
+    bg:"linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
+    choices:[
+      {text:"디벗 그동안 느리고 답답했는데 잘 됐다! 빠이~! 👋",correct:false},
+      {text:"충전함, 이동수업 교실, 가방 등을 확인 후 못 찾으면 과학정보부에 분실 신고! 🔍",correct:true}
+    ],
+    wrongResult:{text:"💸 디벗은 학교 공용 기기! 분실하면 큰 문제가 생겨요!\n\n충전함, 이동수업 교실, 가방 등을 먼저 확인하고\n못 찾으면 반드시 과학정보부에 분실 신고하세요!",hp:-25,score:0},
+    rightResult:{text:"🎉 이동수업 교실에서 찾았다! 다행이다~\n못 찾았더라도 과학정보부에 신고하면 함께 찾아줄 거에요!",hp:0,score:15}
+  },
+  {
+    id:8, title:"수리 맡기기", emoji:"🔧",
+    situation:"디벗 수리를 맡기러 과학정보부에 왔다!\n그런데 보관함이 다 잠겨있네...어쩌지?",
+    bg:"linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
+    choices:[
+      {text:"여기까지 왔는데! 힘으로 열고 수리를 맡긴다! 💪",correct:false},
+      {text:"이미 수리 중이구나! 예비 디벗을 대여한 뒤 다음에 다시 온다. 🔄",correct:true}
+    ],
+    wrongResult:{text:"🚫 보관함 파손! 기물 파손은 절대 안 돼요!\n보관함이 잠겨있다면 이미 다른 기기가 수리 중인 거에요.\n\n예비 디벗을 대여받고, 다음에 다시 방문하세요!",hp:-20,score:0},
+    rightResult:{text:"💡 예비 디벗으로 수업도 문제 없고, 나중에 수리도 맡겼어요!\n침착하고 올바른 판단이었어요!",hp:0,score:15}
+  },
+  {
+    id:9, title:"디벗 파손!", emoji:"💥",
+    situation:"아뿔사! 나의 부주의로 디벗이 파손됐다!\n화면에 금이 가버렸어... 어떻게 하지?",
+    bg:"linear-gradient(135deg, #ff5e62 0%, #ff9966 100%)",
+    choices:[
+      {text:"나라에서 준 거니까 나라에서 책임 져~ 몰?루 😜",correct:false},
+      {text:"나의 부주의니까 내가 해결해야 해. 보관함에 수리를 맡기고 수리비용 최대 4만원이 나올 수 있다는 것을 인지하자. 😔",correct:true}
+    ],
+    wrongResult:{text:"⚠️ 본인 부주의로 인한 파손은 본인 책임이에요!\n수리를 맡기지 않으면 더 큰 고장으로 이어질 수 있어요.\n\n보관함에 수리를 맡기고, 수리비용 최대 4만원이 발생할 수 있다는 것을 알아두세요!",hp:-20,score:0},
+    rightResult:{text:"👏 책임감 있는 태도! 본인 부주의로 인한 파손은 본인이 책임져야 해요.\n수리비용은 최대 4만원까지 발생할 수 있으니 디벗을 소중히 다루세요!",hp:0,score:15}
+  },
+  {
+    id:10, title:"구글 로그인", emoji:"🔑",
+    situation:"선생님이 '구글' 계정으로 로그인하라고 하셨어!\n아이디는 입학연도+학번인데... 뒤에 뭘 붙이지?",
+    bg:"linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%)",
+    choices:[
+      {text:"입학연도+학번@haenuri.ms.kr 로 로그인한다! 📧",correct:false},
+      {text:"입학연도+학번@haenuri.sen.ms.kr 로 로그인한다! 📧",correct:true}
+    ],
+    wrongResult:{text:"❌ 로그인 실패!\nhaenuri.ms.kr이 아니에요!\n\n정확한 주소는 haenuri.sen.ms.kr 입니다!\nsen이 빠지면 로그인이 안 돼요. 꼭 기억하세요!",hp:-10,score:0},
+    rightResult:{text:"✅ 로그인 성공!\nhaenuri.sen.ms.kr 이 정확한 주소에요!\n\nsen을 빼먹지 않고 정확하게 입력하는 당신은 진정한 해누리인! 👏",hp:0,score:15}
+  },
+  {
+    id:11, title:"라벨지의 운명", emoji:"🏷️",
+    situation:"아 디벗에 붙은 라벨지...\n이거 꼴보기 싫은데...? 깔끔해보이지가 않잖아!!",
+    bg:"linear-gradient(135deg, #ed6ea0 0%, #ec8c69 100%)",
+    choices:[
+      {text:"보기 싫으니 떼어버린다! 깔끔한 게 최고지! ✂️",correct:false},
+      {text:"나의 디벗임을 밝히는 주민등록번호 같은 표시! 절대 떼지 않고, 떨어질 것 같으면 과학정보부에서 새로 뽑아달라고 요청한다. 🏷️",correct:true}
+    ],
+    wrongResult:{text:"🚨 라벨지는 디벗의 주민등록번호 같은 거에요!\n누구의 디벗인지, 어떤 기기인지 구분하는 중요한 표시입니다.\n\n절대 떼지 마시고, 떨어질 것 같으면 과학정보부에 와서\n라벨을 새로 뽑아달라고 요청하세요!",hp:-15,score:0},
+    rightResult:{text:"🏷️ 맞아요! 라벨지는 디벗의 신분증이에요!\n떨어질 것 같으면 과학정보부에서 새로 발급받을 수 있어요.\n소중히 관리하는 멋진 학생!",hp:0,score:15}
+  },
+  {
+    id:12, title:"졸업의 날", emoji:"🎓",
+    situation:"아...정든 학교를 떠나네....\n흠... 기념품이 뭐가 좋을까?",
+    bg:"linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+    choices:[
+      {text:"디벗 가져간다! 3년 동안 내 친구였으니까! 🎁",correct:false},
+      {text:"선생님들께 감사한 마음과 학교에서의 추억을 가져간다! 💖",correct:true}
+    ],
+    wrongResult:{text:"🚨 디벗은 학교 소유 기기입니다!\n졸업이나 전출 시 무조건 반납해야 해요!\n\n진짜 기념품은 선생님들께 감사한 마음과 소중한 추억이에요!",hp:-15,score:0},
+    rightResult:{text:"🌟 가장 소중한 건 함께한 시간과 추억이죠!\n디벗은 반납하고, 마음속 추억은 영원히 간직하세요!",hp:0,score:15}
+  },
+  {
+    id:13, title:"드라이브 용량", emoji:"☁️",
+    situation:"학교 계정에서 드라이브 용량을 이렇게나 많이 주다니!\n중요한 파일들을 어디에 보관하지?",
+    bg:"linear-gradient(135deg, #d299c2 0%, #fef9d7 100%)",
+    choices:[
+      {text:"용량 넉넉하니까 온갖 중요한 파일들을 다 보관한다! 📂",correct:false},
+      {text:"졸업/전출 시 계정이 삭제되니 파일을 항상 미리 백업한다! 💾",correct:true}
+    ],
+    wrongResult:{text:"😭 졸업하니까 계정이 삭제됐다! 중요한 파일들이 모두 사라짐...\n\n학교 계정은 졸업·전출 시 삭제됩니다!\n중요한 파일은 반드시 개인 저장소에 백업하세요!",hp:-15,score:0},
+    rightResult:{text:"💾 미리미리 백업해둬서 졸업 후에도 파일 안전!\n데이터 관리의 기본은 백업! 아주 잘했어요!",hp:0,score:15}
+  },
+  {
+    id:14, title:"시험기간 디벗", emoji:"📖",
+    situation:"시험기간...디벗을 가지고 공부해야겠어!\n집에 가져가서 공부하고 싶은데...",
+    bg:"linear-gradient(135deg, #c471f5 0%, #fa71cd 100%)",
+    choices:[
+      {text:"학생이 공부하겠다는데 감히!! 그냥 집에 가져간다! 😤",correct:false},
+      {text:"보호자 동의서를 제출하고 학습 목적으로 사용한다. 충전도 잊지 않는다! ✅",correct:true}
+    ],
+    wrongResult:{text:"⚠️ 무단 반출은 안 돼요!\n집에서 디벗을 사용하려면 보호자 동의서를 제출해야 합니다.\n\n동의서 제출 후 학습 목적으로 사용하고,\n학교 수업에 지장이 가지 않도록 충전도 잊지 마세요!",hp:-15,score:0},
+    rightResult:{text:"📝 동의서도 제출하고 열심히 공부! 충전도 완벽!\n절차를 지키면서 공부하는 멋진 학생이에요!",hp:0,score:15}
+  }
+];
+
+const RANKS = [
+  {min:0,title:"디벗 초보 🐣",desc:"디벗 사용법을 다시 공부해야 해요!",color:"#ff6b6b"},
+  {min:45,title:"디벗 수습생 🌱",desc:"조금 더 노력하면 잘 할 수 있어요!",color:"#ffa94d"},
+  {min:90,title:"디벗 중수 ⭐",desc:"꽤 잘 알고 있지만 아직 부족한 부분이!",color:"#ffd43b"},
+  {min:120,title:"디벗 고수 🏆",desc:"디벗 사용법을 잘 알고 있어요!",color:"#69db7c"},
+  {min:165,title:"디벗 달인 👑",desc:"거의 완벽해요! 조금만 더!",color:"#74c0fc"},
+  {min:195,title:"디벗 마스터 🌟",desc:"완벽한 디벗 사용자! 해누리중의 자랑!",color:"#b197fc"},
+];
+
+let currentQ = 0, hp = 100, score = 0, maxHp = 100;
+let selected = null, showResult = false;
+let history = [];
+
+// Sound
+function playCorrectSound(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [523.25,659.25,783.99].forEach((freq,i)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type="sine";o.frequency.value=freq;
+      g.gain.setValueAtTime(0.3,ctx.currentTime+i*0.12);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+i*0.12+0.4);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(ctx.currentTime+i*0.12);o.stop(ctx.currentTime+i*0.12+0.4);
+    });
+  }catch(e){}
+}
+function playWrongSound(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type="square";o.frequency.setValueAtTime(200,ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(100,ctx.currentTime+0.3);
+    g.gain.setValueAtTime(0.2,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.3);
+    o.connect(g);g.connect(ctx.destination);
+    o.start(ctx.currentTime);o.stop(ctx.currentTime+0.3);
+  }catch(e){}
+}
+
+function getRank(s){
+  let r=RANKS[0];
+  for(const x of RANKS) if(s>=x.min) r=x;
+  return r;
+}
+
+// Floating BG
+(function(){
+  const emojis=["💻","📱","⌨️","🔋","☁️","🔐","📸","🎓","📚","🔧","🎮","🎒","🏷️","💥"];
+  const bg=document.getElementById('floatingBg');
+  emojis.forEach((e,i)=>{
+    const d=document.createElement('div');
+    d.className='floating-emoji';
+    d.textContent=e;
+    d.style.fontSize=(20+Math.random()*20)+'px';
+    d.style.left=Math.random()*90+'%';
+    d.style.top=Math.random()*90+'%';
+    d.style.animationDuration=(3+Math.random()*4)+'s';
+    d.style.animationDelay=(Math.random()*2)+'s';
+    bg.appendChild(d);
+  });
+})();
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function startGame(){
+  currentQ=0;hp=100;score=0;selected=null;showResult=false;history=[];
+  showScreen('gameScreen');
+  renderGame();
+}
+
+function updateHP(){
+  const pct=Math.max(0,hp/maxHp*100);
+  const color=pct>60?"#69db7c":pct>30?"#ffd43b":"#ff6b6b";
+  const fill=document.getElementById('hpFill');
+  fill.style.width=pct+'%';
+  fill.style.background=`linear-gradient(90deg, ${color}, ${color}dd)`;
+  fill.style.boxShadow=`0 0 10px ${color}88`;
+  document.getElementById('hpText').textContent=hp+'/'+maxHp;
+}
+
+function renderProgress(){
+  const bar=document.getElementById('progressBar');
+  bar.innerHTML='';
+  SCENARIOS.forEach((_,i)=>{
+    const seg=document.createElement('div');
+    seg.className='progress-seg';
+    if(i<currentQ){
+      seg.style.background=history[i]&&history[i].correct?'#69db7c':'#ff6b6b';
+    } else if(i===currentQ){
+      seg.style.background='#667eea';
+    } else {
+      seg.style.background='rgba(255,255,255,0.1)';
+    }
+    bar.appendChild(seg);
+  });
+}
+
+function renderGame(){
+  const s=SCENARIOS[currentQ];
+  document.getElementById('qCount').textContent='Q'+(currentQ+1)+' / '+SCENARIOS.length;
+  document.getElementById('scoreVal').textContent=score;
+  updateHP();
+  renderProgress();
+
+  const card=document.getElementById('scenarioCard');
+  card.style.background=s.bg;
+  card.style.animation='none';
+  card.offsetHeight;
+  card.style.animation='slideUp 0.5s ease';
+
+  document.getElementById('scenarioEmoji').textContent=s.emoji;
+  document.getElementById('stageLabel').textContent='STAGE '+s.id;
+  document.getElementById('stageTitle').textContent=s.title;
+
+  const txt=document.getElementById('scenarioText');
+  txt.textContent=s.situation;
+  txt.classList.remove('revealed');
+  setTimeout(()=>txt.classList.add('revealed'),100);
+
+  const wrap=document.getElementById('choicesWrap');
+  wrap.innerHTML='';
+  s.choices.forEach((c,i)=>{
+    const btn=document.createElement('button');
+    btn.className='choice-btn';
+    btn.style.animation=`slideIn 0.4s ease ${0.1*i}s both`;
+    btn.innerHTML=`<span class="choice-num">${i+1}</span><span>${c.text}</span>`;
+    btn.onclick=()=>handleChoice(i);
+    wrap.appendChild(btn);
+  });
+
+  document.getElementById('resultBox').style.display='none';
+  document.getElementById('resultBox').innerHTML='';
+  document.getElementById('nextBtnWrap').innerHTML='';
+  selected=null;showResult=false;
+}
+
+function handleChoice(idx){
+  if(showResult) return;
+  selected=idx;showResult=true;
+  const s=SCENARIOS[currentQ];
+  const choice=s.choices[idx];
+  const result=choice.correct?s.rightResult:s.wrongResult;
+
+  history.push({scenario:s.id,correct:choice.correct});
+
+  if(choice.correct){
+    playCorrectSound();
+    score+=result.score;
+    document.getElementById('scoreVal').textContent=score;
+    const sd=document.getElementById('scoreDisplay');
+    sd.classList.add('anim');
+    setTimeout(()=>sd.classList.remove('anim'),600);
+  } else {
+    playWrongSound();
+    hp=Math.max(0,hp+result.hp);
+    updateHP();
+    const hw=document.getElementById('hpWrap');
+    hw.classList.add('shake');
+    setTimeout(()=>hw.classList.remove('shake'),600);
+  }
+
+  renderProgress();
+
+  // Update choice buttons
+  const btns=document.querySelectorAll('.choice-btn');
+  btns.forEach((btn,i)=>{
+    btn.classList.add('disabled');
+    btn.onclick=null;
+    const num=btn.querySelector('.choice-num');
+    if(s.choices[i].correct){
+      btn.classList.add('correct-reveal');
+      num.classList.add('correct');
+      num.textContent='✓';
+    } else if(i===idx){
+      btn.classList.add('wrong-reveal');
+      num.classList.add('wrong');
+      num.textContent='✗';
+    } else {
+      btn.classList.add('dimmed');
+    }
+  });
+
+  // Show result
+  const rb=document.getElementById('resultBox');
+  rb.style.display='block';
+  rb.className='result-box '+(choice.correct?'correct':'wrong');
+  rb.style.animation='none';
+  rb.offsetHeight;
+  rb.style.animation='bounceIn 0.5s ease';
+
+  let html=`<div class="result-text">${result.text}</div>`;
+  if(result.hp<0) html+=`<span class="badge badge-hp">❤️ HP ${result.hp}</span> `;
+  if(result.score>0) html+=`<span class="badge badge-score">⭐ +${result.score}점</span>`;
+  rb.innerHTML=html;
+
+  rb.scrollIntoView({behavior:'smooth',block:'center'});
+
+  // Next button
+  const nw=document.getElementById('nextBtnWrap');
+  const isEnd=hp<=0||currentQ>=SCENARIOS.length-1;
+  const nbtn=document.createElement('button');
+  nbtn.className='btn-next'+(isEnd?' final':'');
+  nbtn.textContent=hp<=0?'💀 결과 보기':currentQ>=SCENARIOS.length-1?'🏆 최종 결과 보기':'다음 →';
+  nbtn.onclick=handleNext;
+  nw.appendChild(nbtn);
+}
+
+function handleNext(){
+  if(hp<=0||currentQ>=SCENARIOS.length-1){
+    showResultScreen();
+  } else {
+    currentQ++;
+    renderGame();
+  }
+}
+
+function createConfetti(){
+  const colors=["#ff6b6b","#ffd43b","#69db7c","#74c0fc","#b197fc","#ffa94d","#ff8787","#66d9e8"];
+  const wrap=document.getElementById('confettiWrap');
+  wrap.innerHTML='';
+  wrap.className='confetti-wrap';
+  for(let i=0;i<40;i++){
+    const p=document.createElement('div');
+    p.className='confetti-piece';
+    p.style.left=Math.random()*100+'%';
+    p.style.width=(8+Math.random()*8)+'px';
+    p.style.height=(8+Math.random()*8)+'px';
+    p.style.background=colors[Math.floor(Math.random()*colors.length)];
+    p.style.borderRadius=Math.random()>0.5?'50%':'2px';
+    p.style.animation=`confetti ${1.5+Math.random()*2}s ease-in ${Math.random()*0.5}s forwards`;
+    wrap.appendChild(p);
+  }
+}
+
+function showResultScreen(){
+  const rs=document.getElementById('resultScreen');
+  rs.className='screen active '+(hp<=0?'result-screen-go':'result-screen-ok');
+  showScreen('resultScreen');
+
+  const rank=getRank(score);
+  const correctCount=history.filter(h=>h.correct).length;
+  const gameOver=hp<=0;
+
+  if(score>=165) createConfetti();
+
+  let html='';
+  if(gameOver){
+    html+=`<div class="result-emoji">💀</div>
+    <h2 class="go-title">GAME OVER</h2>
+    <p style="color:rgba(255,255,255,0.6);font-size:15px;margin:0 0 24px">HP가 0이 되었습니다...</p>`;
+  } else {
+    const emoji=rank.min>=165?'🏅':rank.min>=100?'🎉':'📋';
+    html+=`<div class="result-emoji float">${emoji}</div>
+    <h2 class="result-title" style="color:#fff">시뮬레이션 완료!</h2>
+    <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:0 0 24px">디벗 관련 문제 해결은 <strong style="color:#74c0fc;font-size:16px">1566-6647</strong></p>`;
+  }
+
+  html+=`<div class="stats-card">
+    <div class="rank-emoji ${rank.min>=165?'pulse-anim':''}">${rank.title.split(' ').pop()}</div>
+    <div class="rank-title" style="color:${rank.color}">${rank.title}</div>
+    <div class="rank-desc">${rank.desc}</div>
+    <div class="stats-row">
+      <div><div class="stat-num" style="color:#ffd43b">${score}</div><div class="stat-label">총 점수</div></div>
+      <div><div class="stat-num" style="color:#69db7c">${correctCount}</div><div class="stat-label">정답 수</div></div>
+      <div><div class="stat-num" style="color:#74c0fc">${history.length}</div><div class="stat-label">도전 수</div></div>
+    </div>
+    <div class="hp-bar-wrap">
+      <span class="hp-label">HP</span>
+      <div class="hp-track"><div class="hp-fill" style="width:${Math.max(0,hp/maxHp*100)}%;background:${hp>60?'#69db7c':hp>30?'#ffd43b':'#ff6b6b'}"></div></div>
+      <span class="hp-text">${hp}/${maxHp}</span>
+    </div>
+  </div>`;
+
+  html+=`<div class="history-card">
+    <div class="history-title">📋 결과 요약</div>
+    <div class="history-grid">
+      ${history.map(h=>`<div class="history-item ${h.correct?'ok':'fail'}">${h.correct?'✅':'❌'}</div>`).join('')}
+    </div>
+  </div>`;
+
+  if(!gameOver){
+    html+=`<div class="support-info">
+      <div class="label">📞 디벗 관련 문제 해결</div>
+      <div class="number">1566-6647</div>
+    </div>`;
+  }
+
+  html+=`<button class="btn-primary" onclick="startGame()" style="animation:none">🔄 다시 도전하기</button>
+  <div class="credit">제작 : 해누리중학교 과학정보부 조승재</div>`;
+
+  document.getElementById('resultContent').innerHTML=html;
+}
+</script>
+</body>
+</html>
